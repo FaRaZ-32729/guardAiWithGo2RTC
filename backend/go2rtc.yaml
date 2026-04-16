@@ -1,0 +1,25 @@
+{
+  "api": {
+    "listen": ":5000"
+  },
+  "rtsp": {
+    "listen": ":8554"
+  },
+  "webrtc": {
+    "listen": ":8555"
+  },
+  "log": {
+    "level": "debug"
+  },
+  "streams": {
+    "local_webcam": [
+      "ffmpeg:device?video=1#video=h264#preset=superfast#tune=zerolatency#g=30s"
+    ],
+    "cam_a36b0ef4": [
+      "http://10.185.67.147:8080/video"
+    ],
+    "cam_06d8fa9e": [
+      "local_webcam"
+    ]
+  }
+}

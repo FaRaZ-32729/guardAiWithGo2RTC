@@ -1,0 +1,16 @@
+
+api:
+  listen: ":5000"
+
+log:
+  level: debug
+
+rtsp:
+  listen: ":8554"
+
+webrtc:
+  listen: ":8555"
+
+streams:
+  webcam:
+    - 'ffmpeg:device?video=1#video=h264#preset=superfast#tune=zerolatency#g=30'
