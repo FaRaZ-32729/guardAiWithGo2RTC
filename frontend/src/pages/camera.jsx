@@ -662,12 +662,271 @@ import { useCamera } from "../context/CameraContext";
 
 const GO2RTC_BASE = "http://localhost:5000";
 
+// function CameraStream({ cam, isWebcam = false }) {
+//     const [imgError, setImgError] = useState(false);
+//     const containerRef = useRef(null);
+//     const [dims, setDims] = useState({ w: 0, h: 0 });
+//     const [retryKey, setRetryKey] = useState(0);
+
+//     useEffect(() => {
+//         const el = containerRef.current;
+//         if (!el) return;
+//         const ro = new ResizeObserver(([entry]) => {
+//             const { width, height } = entry.contentRect;
+//             setDims({ w: width, h: height });
+//         });
+//         ro.observe(el);
+//         return () => ro.disconnect();
+//     }, []);
+
+//     useEffect(() => {
+//         const interval = setInterval(() => {
+//             setImgError(false);
+//             setRetryKey(k => k + 1);
+//         }, 60 * 1000);
+//         return () => clearInterval(interval);
+//     }, []);
+
+//     const streamSrc = isWebcam 
+//         ? `${GO2RTC_BASE}/stream.html?src=local_webcam` 
+//         : cam.streamUrl;
+
+//     return (
+//         <div ref={containerRef} className="absolute inset-0 overflow-hidden bg-black">
+//             {isWebcam ? (
+//                 // Webcam - iframe with NO scrollbar
+//                 <iframe
+//                     key={retryKey}
+//                     src={streamSrc}
+//                     title={cam.cameraName}
+//                     className="w-full h-full border-0 overflow-hidden"
+//                     allow="autoplay; camera; microphone"
+//                     onError={() => setImgError(true)}
+//                     sandbox="allow-scripts allow-same-origin"
+//                     scrolling="no"           // ← Important
+//                 />
+//             ) : (
+//                 // IP Cameras - img (unchanged)
+//                 !imgError ? (
+//                     <img
+//                         key={retryKey}
+//                         src={streamSrc}
+//                         alt={cam.cameraName}
+//                         onError={() => setImgError(true)}
+//                         style={{
+//                             position: "absolute",
+//                             top: "50%",
+//                             left: "50%",
+//                             width: dims.h,
+//                             height: dims.w,
+//                             transform: "translate(-50%, -50%) rotate(270deg)",
+//                             objectFit: "cover",
+//                         }}
+//                     />
+//                 ) : (
+//                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0a0c12]">
+//                         <div className="absolute inset-0 opacity-[0.04]"
+//                             style={{ backgroundImage: "repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 4px)" }} />
+//                         <div className="relative flex items-center justify-center">
+//                             <div className="absolute w-16 h-16 rounded-full bg-red-500/5 border border-red-500/10 animate-ping" />
+//                             <div className="relative p-4 rounded-2xl bg-[#0d0f16] border border-red-500/20">
+//                                 <VideoOff size={22} className="text-red-500/60" />
+//                             </div>
+//                         </div>
+//                         <div className="flex flex-col items-center gap-0.5">
+//                             <span className="text-red-400/70 text-[10px] font-black uppercase tracking-[0.2em]">No Signal</span>
+//                             <span className="text-slate-700 text-[9px] tracking-widest uppercase">Feed Unavailable</span>
+//                         </div>
+//                     </div>
+//                 )
+//             )}
+//         </div>
+//     );
+// }
+
+
+// function CameraStream({ cam, isWebcam = false }) {
+//     const [hasError, setHasError] = useState(false);
+//     const containerRef = useRef(null);
+//     const [retryKey, setRetryKey] = useState(0);
+
+//     // Auto-retry every 60 seconds
+//     useEffect(() => {
+//         const interval = setInterval(() => {
+//             setHasError(false);
+//             setRetryKey(k => k + 1);
+//         }, 60000);
+//         return () => clearInterval(interval);
+//     }, []);
+
+//     const streamSrc = isWebcam 
+//         ? `${GO2RTC_BASE}/webrtc.html?src=local_webcam`   // ← Changed to webrtc.html (cleaner for embedding)
+//         : cam.streamUrl;
+
+//     return (
+//         <div ref={containerRef} className="absolute inset-0 bg-black overflow-hidden">
+//             {hasError ? (
+//                 // Same beautiful No Signal UI for both webcam and IP cameras
+//                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0a0c12]">
+//                     <div className="absolute inset-0 opacity-[0.04]"
+//                         style={{ backgroundImage: "repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 4px)" }} />
+//                     <div className="relative flex items-center justify-center">
+//                         <div className="absolute w-16 h-16 rounded-full bg-red-500/5 border border-red-500/10 animate-ping" />
+//                         <div className="relative p-4 rounded-2xl bg-[#0d0f16] border border-red-500/20">
+//                             <VideoOff size={22} className="text-red-500/60" />
+//                         </div>
+//                     </div>
+//                     <div className="flex flex-col items-center gap-0.5">
+//                         <span className="text-red-400/70 text-[10px] font-black uppercase tracking-[0.2em]">No Signal</span>
+//                         <span className="text-slate-700 text-[9px] tracking-widest uppercase">Feed Unavailable</span>
+//                     </div>
+//                 </div>
+//             ) : isWebcam ? (
+//                 // Webcam iframe - Improved to reduce white/error screen
+//                 <iframe
+//                     key={retryKey}
+//                     src={streamSrc}
+//                     title={cam.cameraName}
+//                     className="w-full h-full border-0 overflow-hidden"
+//                     style={{ backgroundColor: "#000" }}
+//                     allow="autoplay; camera; microphone"
+//                     onError={() => setHasError(true)}
+//                     onLoad={() => console.log("Webcam iframe loaded successfully")}
+//                     sandbox="allow-scripts allow-same-origin"
+//                     scrolling="no"
+//                 />
+//             ) : (
+//                 // IP Cameras - unchanged (but using hasError for consistency)
+//                 !hasError ? (
+//                     <img
+//                         key={retryKey}
+//                         src={streamSrc}
+//                         alt={cam.cameraName}
+//                         onError={() => setHasError(true)}
+//                         style={{
+//                             position: "absolute",
+//                             top: "50%",
+//                             left: "50%",
+//                             width: "100%",
+//                             height: "100%",
+//                             transform: "translate(-50%, -50%) rotate(270deg)",
+//                             objectFit: "cover",
+//                         }}
+//                     />
+//                 ) : (
+//                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0a0c12]">
+//                         <div className="absolute inset-0 opacity-[0.04]"
+//                             style={{ backgroundImage: "repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 4px)" }} />
+//                         <div className="relative flex items-center justify-center">
+//                             <div className="absolute w-16 h-16 rounded-full bg-red-500/5 border border-red-500/10 animate-ping" />
+//                             <div className="relative p-4 rounded-2xl bg-[#0d0f16] border border-red-500/20">
+//                                 <VideoOff size={22} className="text-red-500/60" />
+//                             </div>
+//                         </div>
+//                         <div className="flex flex-col items-center gap-0.5">
+//                             <span className="text-red-400/70 text-[10px] font-black uppercase tracking-[0.2em]">No Signal</span>
+//                             <span className="text-slate-700 text-[9px] tracking-widest uppercase">Feed Unavailable</span>
+//                         </div>
+//                     </div>
+//                 )
+//             )}
+//         </div>
+//     );
+// }
+
+
+
+// function CameraStream({ cam, isWebcam = false }) {
+//     const [hasError, setHasError] = useState(false);
+//     const containerRef = useRef(null);
+//     const [dims, setDims] = useState({ w: 0, h: 0 });
+//     const [retryKey, setRetryKey] = useState(0);
+
+//     // Resize observer (only needed for IP cameras)
+//     useEffect(() => {
+//         const el = containerRef.current;
+//         if (!el) return;
+//         const ro = new ResizeObserver(([entry]) => {
+//             const { width, height } = entry.contentRect;
+//             setDims({ w: width, h: height });
+//         });
+//         ro.observe(el);
+//         return () => ro.disconnect();
+//     }, []);
+
+//     // Auto-retry every 60 seconds
+//     useEffect(() => {
+//         const interval = setInterval(() => {
+//             setHasError(false);
+//             setRetryKey(k => k + 1);
+//         }, 60000);
+//         return () => clearInterval(interval);
+//     }, []);
+
+//     const streamSrc = isWebcam
+//         ? `${GO2RTC_BASE}/webrtc.html?src=local_webcam`   // Cleaner for embedding
+//         : cam.streamUrl;
+
+//     return (
+//         <div ref={containerRef} className="absolute inset-0 bg-black overflow-hidden">
+//             {hasError ? (
+//                 // Unified No Signal UI for both
+//                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0a0c12]">
+//                     <div className="absolute inset-0 opacity-[0.04]"
+//                         style={{ backgroundImage: "repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 4px)" }} />
+//                     <div className="relative flex items-center justify-center">
+//                         <div className="absolute w-16 h-16 rounded-full bg-red-500/5 border border-red-500/10 animate-ping" />
+//                         <div className="relative p-4 rounded-2xl bg-[#0d0f16] border border-red-500/20">
+//                             <VideoOff size={22} className="text-red-500/60" />
+//                         </div>
+//                     </div>
+//                     <div className="flex flex-col items-center gap-0.5">
+//                         <span className="text-red-400/70 text-[10px] font-black uppercase tracking-[0.2em]">No Signal</span>
+//                         <span className="text-slate-700 text-[9px] tracking-widest uppercase">Feed Unavailable</span>
+//                     </div>
+//                 </div>
+//             ) : isWebcam ? (
+//                 // ==================== WEBCAM - New Improved Version ====================
+//                 <iframe
+//                     key={retryKey}
+//                     src={streamSrc}
+//                     title={cam.cameraName}
+//                     className="w-full h-full border-0 overflow-hidden"
+//                     style={{ backgroundColor: "#000" }}
+//                     allow="autoplay; camera; microphone"
+//                     onError={() => setHasError(true)}
+//                     sandbox="allow-scripts allow-same-origin"
+//                     scrolling="no"
+//                 />
+//             ) : (
+//                 // ==================== IP CAMERAS - Your Original Style ====================
+//                 <img
+//                     key={retryKey}
+//                     src={streamSrc}
+//                     alt={cam.cameraName}
+//                     onError={() => setHasError(true)}
+//                     style={{
+//                         position: "absolute",
+//                         top: "50%",
+//                         left: "50%",
+//                         width: "100%",           // Better than dims.h
+//                         height: "100%",          // Better than dims.w
+//                         transform: "translate(-50%, -50%)",   // Removed rotate(270deg)
+//                         objectFit: "cover",
+//                     }}
+//                 />
+//             )}
+//         </div>
+//     );
+// }
+
 function CameraStream({ cam, isWebcam = false }) {
-    const [imgError, setImgError] = useState(false);
+    const [hasError, setHasError] = useState(false);
     const containerRef = useRef(null);
     const [dims, setDims] = useState({ w: 0, h: 0 });
     const [retryKey, setRetryKey] = useState(0);
 
+    // Resize Observer - only useful for IP cameras
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -679,70 +938,73 @@ function CameraStream({ cam, isWebcam = false }) {
         return () => ro.disconnect();
     }, []);
 
+    // Auto-retry ONLY for IP cameras (img), NOT for webcam iframe
     useEffect(() => {
-        const interval = setInterval(() => {
-            setImgError(false);
-            setRetryKey(k => k + 1);
-        }, 60 * 1000);
-        return () => clearInterval(interval);
-    }, []);
+        if (isWebcam) return;                    // ← Important: Skip for webcam
 
-    const streamSrc = isWebcam
-        ? `${GO2RTC_BASE}/stream.html?src=local_webcam`
+        const interval = setInterval(() => {
+            setHasError(false);
+            setRetryKey(k => k + 1);
+        }, 60000);
+
+        return () => clearInterval(interval);
+    }, [isWebcam]);
+
+    const streamSrc = isWebcam 
+        ? `${GO2RTC_BASE}/webrtc.html?src=local_webcam` 
         : cam.streamUrl;
 
     return (
-        <div ref={containerRef} className="absolute inset-0 overflow-hidden bg-black">
-            {isWebcam ? (
-                // Webcam - iframe with NO scrollbar
-                <iframe
-                    key={retryKey}
-                    src={streamSrc}
-                    title={cam.cameraName}
-                    className="w-full h-full border-0 overflow-hidden"
-                    allow="autoplay; camera; microphone"
-                    onError={() => setImgError(true)}
-                    sandbox="allow-scripts allow-same-origin"
-                    scrolling="no"           // ← Important
-                />
-            ) : (
-                // IP Cameras - img (unchanged)
-                !imgError ? (
-                    <img
-                        key={retryKey}
-                        src={streamSrc}
-                        alt={cam.cameraName}
-                        onError={() => setImgError(true)}
-                        style={{
-                            position: "absolute",
-                            top: "50%",
-                            left: "50%",
-                            width: dims.h,
-                            height: dims.w,
-                            transform: "translate(-50%, -50%) rotate(270deg)",
-                            objectFit: "cover",
-                        }}
-                    />
-                ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0a0c12]">
-                        <div className="absolute inset-0 opacity-[0.04]"
-                            style={{ backgroundImage: "repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 4px)" }} />
-                        <div className="relative flex items-center justify-center">
-                            <div className="absolute w-16 h-16 rounded-full bg-red-500/5 border border-red-500/10 animate-ping" />
-                            <div className="relative p-4 rounded-2xl bg-[#0d0f16] border border-red-500/20">
-                                <VideoOff size={22} className="text-red-500/60" />
-                            </div>
-                        </div>
-                        <div className="flex flex-col items-center gap-0.5">
-                            <span className="text-red-400/70 text-[10px] font-black uppercase tracking-[0.2em]">No Signal</span>
-                            <span className="text-slate-700 text-[9px] tracking-widest uppercase">Feed Unavailable</span>
+        <div ref={containerRef} className="absolute inset-0 bg-black overflow-hidden">
+            {hasError ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0a0c12]">
+                    <div className="absolute inset-0 opacity-[0.04]"
+                        style={{ backgroundImage: "repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 4px)" }} />
+                    <div className="relative flex items-center justify-center">
+                        <div className="absolute w-16 h-16 rounded-full bg-red-500/5 border border-red-500/10 animate-ping" />
+                        <div className="relative p-4 rounded-2xl bg-[#0d0f16] border border-red-500/20">
+                            <VideoOff size={22} className="text-red-500/60" />
                         </div>
                     </div>
-                )
+                    <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-red-400/70 text-[10px] font-black uppercase tracking-[0.2em]">No Signal</span>
+                        <span className="text-slate-700 text-[9px] tracking-widest uppercase">Feed Unavailable</span>
+                    </div>
+                </div>
+            ) : isWebcam ? (
+                // Webcam - No forced retry → much faster and stable
+                <iframe
+                    src={streamSrc}                    // Removed key={retryKey} for webcam
+                    title={cam.cameraName}
+                    className="w-full h-full border-0 overflow-hidden"
+                    style={{ backgroundColor: "#000" }}
+                    allow="autoplay; camera; microphone"
+                    onError={() => setHasError(true)}
+                    sandbox="allow-scripts allow-same-origin"
+                    scrolling="no"
+                />
+            ) : (
+                // IP Camera - Keep your original style + retry
+                <img
+                    key={retryKey}
+                    src={streamSrc}
+                    alt={cam.cameraName}
+                    onError={() => setHasError(true)}
+                    style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        width: "100%",
+                        height: "100%",
+                        transform: "translate(-50%, -50%)",
+                        objectFit: "cover",
+                    }}
+                />
             )}
         </div>
     );
 }
+
 
 // Fullscreen Modal (unchanged - already good)
 function FullscreenModal({ cam, isWebcam = false, onClose }) {
