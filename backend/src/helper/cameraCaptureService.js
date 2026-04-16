@@ -63,11 +63,24 @@ const processNextCamera = async () => {
     const camera = cameraQueue[currentIndex];
     currentIndex++;
 
-    const streamName = camera.cameraName === "Local Webcam" 
-        ? "local_webcam" 
-        : `cam_${camera._id.toString().slice(-8)}`;
+    // const streamName = camera.cameraName === "Local Webcam" 
+    //     ? "local_webcam" 
+    //     : `cam_${camera._id.toString().slice(-8)}`;
 
-    console.log(`📸 Capturing: ${camera.cameraName} (${streamName})`);
+    // console.log(`📸 Capturing: ${camera.cameraName} (${streamName})`);
+
+    // ==================== MAIN CHANGE HERE ====================
+    let streamName;
+
+    if (camera.cameraType === "webcam") {
+        streamName = "local_webcam";           // Fixed name used in go2rtc for local webcam
+    } else {
+        // For IP Camera: use the short name derived from _id (your existing logic)
+        streamName = `cam_${camera._id.toString().slice(-8)}`;
+    }
+    // ==========================================================
+
+    console.log(`📸 Capturing: ${camera.cameraName} (${camera.cameraType}) → ${streamName}`);
 
     const snapshotPath = await takeSnapshot(streamName);
     if (!snapshotPath) return;
