@@ -14,7 +14,6 @@ let currentIndex = 0;
 
 const GO2RTC_URL = `http://localhost:${GO2RTC_PORT}`;
 
-// ====================== Roboflow Detection Functions ======================
 
 // 1. Person Detection
 const containsPerson = async (imagePath) => {

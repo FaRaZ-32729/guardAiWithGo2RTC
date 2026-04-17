@@ -6,41 +6,6 @@ const isValidStreamUrl = (url) => {
 };
 
 
-// const registerCam = async (req, res) => {
-//     try {
-//         const { cameraName, streamUrl } = req.body;
-
-//         if (!streamUrl) {
-//             return res.status(400).json({ message: "Stream URL is required" });
-//         }
-
-//         if (!isValidStreamUrl(streamUrl)) {
-//             return res.status(400).json({ message: "Invalid stream URL format" });
-//         }
-
-//         const existing = await cameraModel.findOne({ streamUrl });
-
-//         if (existing) {
-//             return res.status(400).json({ message: "Camera with this stream URL already exists" });
-//         }
-
-//         const camera = new cameraModel({
-//             cameraName: cameraName || null,
-//             streamUrl
-//         });
-
-//         await camera.save();
-
-//         return res.status(201).json({
-//             message: "Camera registered successfully",
-//             camera
-//         });
-
-//     } catch (error) {
-//         return res.status(500).json({ message: error.message });
-//     }
-// };
-
 const registerCam = async (req, res) => {
     try {
         const { cameraName, streamUrl } = req.body;
