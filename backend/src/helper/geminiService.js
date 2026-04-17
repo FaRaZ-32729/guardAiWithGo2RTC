@@ -7,153 +7,179 @@ const compressImageToBase64 = require('../middleware/compressFrames');
 
 let cachedStudents = [];
 
-
 const loadStudents = async () => {
     cachedStudents = await Student.find({});
-    console.log("Students cached in memory", cachedStudents.length, "students loaded");
+    console.log(`Students cached in memory: ${cachedStudents.length} students loaded`);
 };
 
 const processWithGemini = async (cameraFramePath, camera) => {
     let snapshotPath = null;
     try {
-        console.log("Sending frame to Gemini...");
+        console.log("Sending frame to OpenAI...");
 
-         snapshotPath = cameraFramePath.replace('.jpg', `_snapshot_${Date.now()}.jpg`);
+        snapshotPath = cameraFramePath.replace('.jpg', `_snapshot_${Date.now()}.jpg`);
         fs.copyFileSync(cameraFramePath, snapshotPath);
 
         const students = cachedStudents;
 
-        // Read camera frame as base64
-        // const cameraBase64 = fs.readFileSync(cameraFramePath, { encoding: "base64" });
+        if (students.length === 0) {
+            console.warn("No students loaded in cache! Make sure loadStudents() is called on startup.");
+        }
+
+        // Compress camera frame
         const cameraBase64 = await compressImageToBase64(snapshotPath);
 
-        // Prepare prompt text
         const promptText = `
-You are an advanced school surveillance AI with facial recognition capabilities.
+You are an extremely accurate, highly cautious, and responsible school surveillance AI specialized in facial recognition and behavior detection.
 
-## YOUR TASK:
-Analyze the FIRST image (camera frame) carefully.
-Then compare EVERY face detected in the camera frame against ALL provided registered student images.
+## YOUR CRITICAL RESPONSIBILITY:
+Analyze the provided camera frame and carefully compare every visible face with the registered student photos.
 
-## STRICT MATCHING RULES:
-1. Examine facial features closely: face shape, eyes, nose, mouth, eyebrows, skin tone, and overall structure.
-2. A match is ONLY valid if you are at least 80% confident the face matches a registered student.
-3. If a person's face does NOT closely match any registered student → label them as "anonymous".
-4. If NO face is detected in the camera frame → return empty array [].
-5. Do NOT guess or assume. If unsure → return "anonymous".
+## STRICT FACIAL MATCHING RULES - MUST FOLLOW:
+1. Examine every facial detail with high attention:
+   - Face shape, jawline, forehead, cheekbones
+   - Eyes (shape, size, spacing, eye color)
+   - Nose (shape, width, nostrils)
+   - Mouth, lips, and teeth (when visible)
+   - Eyebrows (shape, thickness, position)
+   - Skin tone, hair style/color, ears, any moles, scars, or marks
+   - Overall facial proportions and structure
 
-## ACTION DETECTION:
-For each detected person, identify their action:
-- "smoking"     → person is holding/smoking a cigarette, vape, or any smoking object
-- "fighting"    → person is involved in physical aggression
-- "normal"      → no suspicious activity detected
+2. Only declare a match if you are **90% or higher confident**. 
+   Even small doubts must result in "Anonymous".
 
-## SEVERITY LEVELS:
-- "high"   → smoking or fighting
-- "low"    → normal behavior
+3. Never guess or hallucinate identities.
+
+4. If no clear human faces are visible, return an empty array [].
+
+## ACTION DETECTION (Be Very Alert):
+- "smoking" → clearly holding or smoking a cigarette, vape, cigar, or any smoking device (even if not lit)
+- "fighting" → any form of physical aggression including:
+   - Punching, slapping, kicking, pushing, grabbing, shoving
+   - Wrestling, aggressive physical contact with another person
+   - Raised fists, aggressive stance, or fighting posture
+   - Two or more people in physical conflict
+- "normal" → no suspicious or aggressive activity
+
+## SEVERITY LEVEL:
+- "high" → smoking or fighting
+- "low" → normal behavior
 
 ## OUTPUT FORMAT:
-Return ONLY a valid JSON array. No explanation, no markdown, no extra text.
+Return **ONLY** a valid JSON array. No explanations, no markdown, no extra text.
 
 [
   {
     "matched": true or false,
-    "name": "Student Full Name" or "Anonymous",
+    "name": "Full Student Name" or "Anonymous",
     "rollNo": "student roll number" or "N/A",
     "action": "smoking" | "fighting" | "normal",
     "severity": "high" | "low",
-    "confidence": "percentage like 85%",
-    "description": "One short sentence describing what this person is doing"
+    "confidence": "92%" or "65%",
+    "description": "One short, clear sentence describing exactly what this person is doing"
   }
 ]
 
-## IMPORTANT REMINDERS:
-- Return one object per detected person in the camera frame.
-- If multiple people are in the frame, return multiple objects.
-- Never return null. Always return a valid JSON array.
-- If zero people detected, return [].
+## FINAL IMPORTANT INSTRUCTIONS:
+- Be extremely strict and conservative with facial matching.
+- Be highly sensitive and accurate when detecting fighting and smoking.
+- When in doubt about identity, always choose "Anonymous".
+- Analyze the camera frame first, then compare with all registered students.
+
+Now carefully analyze the camera frame and return only the JSON array.
 `;
 
-        // Prepare multimodal content
-        const parts = [
-            { text: promptText },
-            { text: "CAMERA FRAME (analyze this image for faces and actions):" },
+        // Prepare messages for OpenAI
+        const messages = [
+            { role: "system", content: "You are a highly accurate school surveillance AI. Always respond with valid JSON only." },
             {
-                inlineData: {
-                    mimeType: "image/jpeg",
-                    data: cameraBase64
-                }
-            },
-            { text: "REGISTERED STUDENTS (compare faces against the camera frame):" }
+                role: "user",
+                content: [
+                    { type: "text", text: promptText },
+                    {
+                        type: "image_url",
+                        image_url: { url: `data:image/jpeg;base64,${cameraBase64}` }
+                    },
+                    { type: "text", text: "Here is the camera frame. Now compare with registered students below:" }
+                ]
+            }
         ];
 
-        // Add all student images
+        // Add all registered student images with logging
         for (const student of students) {
             const studentImagePath = path.join(__dirname, "../../uploads", `${student.studentRollNumber}.jpeg`);
+
             if (fs.existsSync(studentImagePath)) {
-                // const studentBase64 = fs.readFileSync(studentImagePath, { encoding: "base64" });
                 const studentBase64 = await compressImageToBase64(studentImagePath);
 
-                console.log(`Loaded student image: ${student.name}, RollNo: ${student.studentRollNumber}, Size: ${studentBase64.length} bytes`);
+                console.log(`Loaded student image: ${student.name} | RollNo: ${student.studentRollNumber} | Size: ${studentBase64.length} bytes`);
 
-                parts.push(
-                    { text: `Student Name: ${student.name} | RollNo: ${student.studentRollNumber}` },
-                    {
-                        inlineData: {
-                            mimeType: "image/jpeg",
-                            data: studentBase64
+                messages.push({
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: `Registered Student: ${student.name} | Roll No: ${student.studentRollNumber}`
+                        },
+                        {
+                            type: "image_url",
+                            image_url: { url: `data:image/jpeg;base64,${studentBase64}` }
                         }
-                    }
-                );
+                    ]
+                });
             } else {
                 console.warn(`Student image NOT found: ${student.name}, RollNo: ${student.studentRollNumber}`);
             }
         }
 
         // Final instruction
-        parts.push({
-            text: ` Now analyze the camera frame, match faces against the registered students above, detect actions, and return ONLY the JSON array as instructed.`
+        messages.push({
+            role: "user",
+            content: "Now analyze the camera frame carefully, match faces, detect actions, and return ONLY the JSON array as specified."
         });
 
-        // Call Gemini
+        // Call OpenAI
         const response = await axios.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            "https://api.openai.com/v1/chat/completions",
             {
-                contents: [{ parts }],
-                generationConfig: {
-                    temperature: 0.1,
-                    topP: 0.8,
-                    maxOutputTokens: 2048
+                model: "gpt-4o",
+                messages: messages,
+                max_tokens: 1500,
+                temperature: 0.1
+            },
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json"
                 }
             }
         );
 
-        const text = response.data.candidates[0].content.parts[0].text;
-        console.log("Raw Gemini Response:", text);
+        const text = response.data.choices[0].message.content;
+        console.log("Raw OpenAI Response:", text);
 
-        // Parse JSON safely
+        // Parse JSON
         let parsed;
         try {
             const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
             parsed = JSON.parse(cleanText);
 
-            // Validate it's an array
             if (!Array.isArray(parsed)) {
-                parsed = [parsed]; 
+                parsed = [parsed];
             }
-
         } catch (err) {
-            console.error("Invalid JSON from Gemini:", err.message);
+            console.error("Invalid JSON from OpenAI:", err.message);
             return null;
         }
 
-        console.log("Parsed Gemini JSON:", parsed);
+        console.log("Parsed OpenAI JSON:", parsed);
 
+        // Generate challan
         for (const result of parsed) {
-            console.log("result send")
-            // await generateChallan(result, cameraFramePath);
             await generateChallan(result, snapshotPath);
         }
+
+        // Cleanup
         if (fs.existsSync(snapshotPath)) {
             fs.unlinkSync(snapshotPath);
             console.log("Snapshot deleted:", snapshotPath);
@@ -162,17 +188,11 @@ Return ONLY a valid JSON array. No explanation, no markdown, no extra text.
         return parsed;
 
     } catch (error) {
-
         if (snapshotPath && fs.existsSync(snapshotPath)) {
             fs.unlinkSync(snapshotPath);
-            console.log("Snapshot deleted on error:", snapshotPath);
         }
 
-        if (error.response) {
-            console.error("Gemini API Error:", JSON.stringify(error.response.data, null, 2));
-        } else {
-            console.error("Gemini API Error:", error.message);
-        }
+        console.error("OpenAI API Error:", error.response ? error.response.data : error.message);
         return null;
     }
 };
